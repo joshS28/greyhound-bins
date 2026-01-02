@@ -1,0 +1,13 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "title": "Greyhound Bins",
+                "description": "Set up the Greyhound Bins integration to track your bin collection schedule."
+            }
+        },
+        "abort": {
+            "already_configured": "This integration is already configured."
+        }
+    }
+}

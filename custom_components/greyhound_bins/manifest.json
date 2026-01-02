@@ -1,0 +1,14 @@
+{
+    "domain": "greyhound_bins",
+    "name": "Greyhound Bins",
+    "codeowners": [
+        "@joshS28"
+    ],
+    "config_flow": true,
+    "dependencies": [],
+    "documentation": "https://github.com/joshS28/greyhound-bins",
+    "iot_class": "calculated",
+    "issue_tracker": "https://github.com/joshS28/greyhound-bins/issues",
+    "requirements": [],
+    "version": "1.0.0"
+}
