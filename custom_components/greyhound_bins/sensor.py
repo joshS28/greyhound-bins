@@ -71,40 +71,43 @@ class GreyhoundBinSensor(SensorEntity):
 
     def _calculate_next_collection(self) -> datetime:
         """Calculate the next collection date for this bin type."""
-        now = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        now_dt = dt_util.now()
+        now_date = now_dt.date()
+        
+        # Reference date: Thursday 1st Jan 2026
+        reference_date = BLACK_BIN_REFERENCE_DATE.date()
         
         # Calculate offset from reference date
         if self._bin_type == BIN_TYPE_BLACK:
-            # Black bin starts on reference date (2026-01-01)
-            reference = BLACK_BIN_REFERENCE_DATE
+            reference = reference_date
         else:
             # Green & Brown bins start one week after black bin
-            reference = BLACK_BIN_REFERENCE_DATE + timedelta(days=7)
+            reference = reference_date + timedelta(days=7)
         
         # Find the next collection date
-        days_since_reference = (now - reference).days
+        days_since_reference = (now_date - reference).days
         
-        # If we're before the reference date, use the reference date
         if days_since_reference < 0:
-            next_collection = reference
+            next_collection_date = reference
         else:
             # Calculate how many collection cycles have passed
             cycles_passed = days_since_reference // COLLECTION_INTERVAL_DAYS
             
-            # Calculate the next collection date
-            next_collection = reference + timedelta(days=(cycles_passed * COLLECTION_INTERVAL_DAYS))
+            # Calculate the potential collection date
+            next_collection_date = reference + timedelta(days=(cycles_passed * COLLECTION_INTERVAL_DAYS))
             
-            # If that date is in the past or today, move to the next cycle
-            if next_collection <= now:
-                next_collection = reference + timedelta(days=((cycles_passed + 1) * COLLECTION_INTERVAL_DAYS))
+            # If that date is in the past, move to the next cycle
+            if next_collection_date < now_date:
+                next_collection_date = reference + timedelta(days=((cycles_passed + 1) * COLLECTION_INTERVAL_DAYS))
         
-        return next_collection
+        # Convert back to a datetime at midnight for the state
+        return datetime.combine(next_collection_date, datetime.min.time())
 
     async def async_update(self) -> None:
         """Update the sensor."""
         self._next_collection = self._calculate_next_collection()
-        now = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        self._days_until = (self._next_collection - now).days
+        now_date = dt_util.now().date()
+        self._days_until = (self._next_collection.date() - now_date).days
 
 
 class NextCollectionSensor(SensorEntity):
@@ -145,40 +148,41 @@ class NextCollectionSensor(SensorEntity):
 
     def _calculate_next_collection(self) -> tuple[datetime, str]:
         """Calculate the next collection date (either bin type)."""
-        now = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
+        now_date = dt_util.now().date()
+        reference_date = BLACK_BIN_REFERENCE_DATE.date()
         
         # Calculate next black bin collection
-        black_reference = BLACK_BIN_REFERENCE_DATE
-        days_since_black = (now - black_reference).days
+        black_reference = reference_date
+        days_since_black = (now_date - black_reference).days
         
         if days_since_black < 0:
             next_black = black_reference
         else:
             cycles_passed = days_since_black // COLLECTION_INTERVAL_DAYS
             next_black = black_reference + timedelta(days=(cycles_passed * COLLECTION_INTERVAL_DAYS))
-            if next_black <= now:
+            if next_black < now_date:
                 next_black = black_reference + timedelta(days=((cycles_passed + 1) * COLLECTION_INTERVAL_DAYS))
         
         # Calculate next green & brown bin collection
-        green_brown_reference = BLACK_BIN_REFERENCE_DATE + timedelta(days=7)
-        days_since_green = (now - green_brown_reference).days
+        green_brown_reference = reference_date + timedelta(days=7)
+        days_since_green = (now_date - green_brown_reference).days
         
         if days_since_green < 0:
             next_green_brown = green_brown_reference
         else:
             cycles_passed = days_since_green // COLLECTION_INTERVAL_DAYS
             next_green_brown = green_brown_reference + timedelta(days=(cycles_passed * COLLECTION_INTERVAL_DAYS))
-            if next_green_brown <= now:
+            if next_green_brown < now_date:
                 next_green_brown = green_brown_reference + timedelta(days=((cycles_passed + 1) * COLLECTION_INTERVAL_DAYS))
         
         # Return whichever is sooner
         if next_black <= next_green_brown:
-            return next_black, BIN_TYPE_BLACK
+            return datetime.combine(next_black, datetime.min.time()), BIN_TYPE_BLACK
         else:
-            return next_green_brown, BIN_TYPE_GREEN_BROWN
+            return datetime.combine(next_green_brown, datetime.min.time()), BIN_TYPE_GREEN_BROWN
 
     async def async_update(self) -> None:
         """Update the sensor."""
         self._next_collection, self._bin_type = self._calculate_next_collection()
-        now = dt_util.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        self._days_until = (self._next_collection - now).days
+        now_date = dt_util.now().date()
+        self._days_until = (self._next_collection.date() - now_date).days
